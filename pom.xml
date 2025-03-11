@@ -5,8 +5,10 @@
   <groupId>com.selfmade.project</groupId>
   <artifactId>EmployeeManagementSystem</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <packaging>jar</packaging>
-
+  <!---<packaging>jar</packaging>-->
+	  <packaging>war</packaging>
+	  
+	  
   <name>EmployeeManagementSystem</name>
   <url>http://maven.apache.org</url>
 
@@ -29,6 +31,14 @@
 	    <artifactId>mysql-connector-j</artifactId>
 	    <version>8.3.0</version>
 	</dependency>
+	
+	<dependency>
+    <groupId>javax.servlet</groupId>
+    <artifactId>javax.servlet-api</artifactId>
+    <version>4.0.1</version> <!-- Ensure it's 3.0+ -->
+    <scope>provided</scope>
+</dependency>
+
 
     
   </dependencies>

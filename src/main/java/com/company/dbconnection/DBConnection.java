@@ -23,8 +23,12 @@ public class DBConnection {
     		try {
                 Class.forName("com.mysql.cj.jdbc.Driver"); // Load MySQL driver
                 conn = DriverManager.getConnection(url, username, password);
-            } catch (ClassNotFoundException | SQLException e) {
-                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                System.err.println("JDBC Driver not found: " + e.getMessage());
+                return null;
+            } catch (SQLException e) {
+                System.err.println("Database connection failed: " + e.getMessage());
+                return null;
             }
     	}
     	
