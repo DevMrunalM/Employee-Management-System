@@ -1,10 +1,10 @@
-package com.company.test;
+package com.company.main;
 
 import com.company.dao.EmployeeDAO;
 import com.company.dao.EmployeeDAOImpl;
 import com.company.model.Employee;
 
-public class EmployeeTest {
+public class EmployeeMain {
 
 	 public static void main(String[] args) {
 		

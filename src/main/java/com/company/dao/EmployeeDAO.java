@@ -1,5 +1,7 @@
 package com.company.dao;
 
+import java.util.List;
+
 import com.company.model.Employee;
 
 public interface EmployeeDAO {
@@ -8,10 +10,10 @@ public interface EmployeeDAO {
 		 public void createEmployee(Employee employee);
 		 
 		 //Retrieve employee by ID
-		 public void getEmployeeById(int id);
+		 public Employee getEmployeeById(int id);
 		 
 		 //Retrieve all employee
-		 public void getAllEmployees();
+		 public List<Employee> getAllEmployees();
 		 
 		 //Update existing employee
 		 public void updateEmployee(Employee employee);

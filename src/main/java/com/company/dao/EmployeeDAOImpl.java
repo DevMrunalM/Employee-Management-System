@@ -5,12 +5,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import com.company.dbconnection.DBConnection;
+import com.company.config.DBConnection;
 import com.company.model.Employee;
 
-public class EmployeeDAOImpl {
+public class EmployeeDAOImpl implements EmployeeDAO{
     private Connection conn = DBConnection.getConnection();
 
     // Create Employee (INSERT)
@@ -45,6 +47,7 @@ public class EmployeeDAOImpl {
             }
         } catch (SQLException e) {
         	System.out.println("Error fetching employee by ID: " + e.getMessage()); // Exception Handling Added
+        	 e.printStackTrace();
         }
         return null;
     }
@@ -69,7 +72,27 @@ public class EmployeeDAOImpl {
         }
         return employees;
     }
+    
+    // Get all employees sorted by salary using Lambda Expression
+    public List<Employee> getAllEmployeesSortedBySalary() {
+        return getAllEmployees().stream()
+                .sorted(Comparator.comparingDouble(Employee::getSalary))
+                .collect(Collectors.toList());
+    }
 
+    // Get employees by department using Java 8 Stream API
+    public List<Employee> getEmployeesByDepartment(String department) {
+        return getAllEmployees().stream()
+                .filter(emp -> emp.getDepartment().equalsIgnoreCase(department))
+                .collect(Collectors.toList());
+    }
+
+    // Print all employees using method reference
+    public void printAllEmployees() {
+        getAllEmployees().forEach(System.out::println);
+    }
+
+    
     // Update Employee (UPDATE)
     public void updateEmployee(Employee employee) {
         String sql = "UPDATE employees SET name = ?, age = ?, salary = ?, department = ? WHERE id = ?";

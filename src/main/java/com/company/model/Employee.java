@@ -1,8 +1,9 @@
 package com.company.model;
 
 import java.lang.invoke.StringConcatFactory;
+import java.util.Objects;
 
-public class Employee {
+public class Employee implements Comparable<Employee>{
 	
 	private int id;
 	private String name;
@@ -65,16 +66,33 @@ public class Employee {
 	public void setDepartment(String department) {
 		this.department = department;
 	}
+	
+	 @Override
+	    public int compareTo(Employee other) {
+	        return Double.compare(this.salary, other.salary);
+	    }
+	
+	 @Override
+	    public boolean equals(Object o) {
+	        if (this == o) return true;
+	        if (o == null || getClass() != o.getClass()) return false;
+	        Employee employee = (Employee) o;
+	        return id == employee.id && age == employee.age && Double.compare(employee.salary, salary) == 0 && Objects.equals(name, employee.name) && Objects.equals(department, employee.department);
+	    }
 
-	@Override
-	public String toString() {
-		return "Employee [id=" + id + ", name=" + name + ", age=" + age + ", salary=" + salary + ", department="
-				+ department + "]";
+	    @Override
+	    public int hashCode() {
+	        return Objects.hash(id, name, age, salary, department);
+	    }
+
+	    @Override
+	    public String toString() {
+	        return "Employee{" +
+	                "id=" + id +
+	                ", name='" + name + '\'' +
+	                ", age=" + age +
+	                ", salary=" + salary +
+	                ", department='" + department + '\'' +
+	                '}';
+	    }
 	}
-	
-	
-	
-	
-	
-
-}

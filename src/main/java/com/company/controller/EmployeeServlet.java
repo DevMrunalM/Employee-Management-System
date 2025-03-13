@@ -1,4 +1,4 @@
-package com.company.service;
+package com.company.controller;
 
 import java.io.IOException;
 import java.io.PrintWriter;
