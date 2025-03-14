@@ -29,7 +29,6 @@ public class EmployeeDAOImpl implements EmployeeDAO{
         	 System.out.println("Error inserting employee: " + e.getMessage()); // Exception Handling Added
         }
     }
-
     // Read Employee by ID (SELECT)
     public Employee getEmployeeById(int id) {
         String sql = "SELECT * FROM employees WHERE id = ?";
@@ -51,7 +50,6 @@ public class EmployeeDAOImpl implements EmployeeDAO{
         }
         return null;
     }
-
     // Read All Employees (SELECT)
     public List<Employee> getAllEmployees() {
         List<Employee> employees = new ArrayList<>();
@@ -92,7 +90,6 @@ public class EmployeeDAOImpl implements EmployeeDAO{
         getAllEmployees().forEach(System.out::println);
     }
 
-    
     // Update Employee (UPDATE)
     public void updateEmployee(Employee employee) {
         String sql = "UPDATE employees SET name = ?, age = ?, salary = ?, department = ? WHERE id = ?";
@@ -109,13 +106,24 @@ public class EmployeeDAOImpl implements EmployeeDAO{
     }
 
     // Delete Employee (DELETE)
-    public void deleteEmployee(int id) {
+    @Override
+    public boolean deleteEmployee(int id) {
         String sql = "DELETE FROM employees WHERE id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, id);
-            pstmt.executeUpdate();
+            int affectedRows = pstmt.executeUpdate();
+            
+            if (affectedRows == 0) {
+                System.out.println("No employee found with ID: " + id);
+                return false; // Employee was not found
+            } else {
+                System.out.println("Employee with ID " + id + " deleted successfully.");
+                return true; // Employee deleted successfully
+            }
+            
         } catch (SQLException e) {
-        	System.out.println("Error deleting employee: " + e.getMessage());
+            System.out.println("Error deleting employee: " + e.getMessage()); 
         }
+        return false; // Return false in case of exception
     }
 }

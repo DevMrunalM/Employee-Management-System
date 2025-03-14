@@ -1,7 +1,9 @@
 package com.company.controller;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -9,104 +11,161 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.company.config.DBConnection;
 import com.company.dao.EmployeeDAO;
 import com.company.dao.EmployeeDAOImpl;
 import com.company.model.Employee;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 
-@WebServlet("/employees")
+@WebServlet("/employees/*")
 public class EmployeeServlet extends HttpServlet {
     private EmployeeDAOImpl employeeDAO = new EmployeeDAOImpl();
+    private Gson gson = new Gson();
 
     // GET method
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.setContentType("text/html");
+        response.setContentType("application/json");
         PrintWriter out = response.getWriter();
         System.out.println("<h3>GET method called</h3>");
-        out.close();
+
         String idParam = request.getParameter("id");
 
         try {
             if (idParam != null) {
                 int id = Integer.parseInt(idParam);
-                employeeDAO.getEmployeeById(id);
+                Employee employee = employeeDAO.getEmployeeById(id);
+                String jsonResponse = gson.toJson(employee);
+                out.print(jsonResponse);
             } else {
-                employeeDAO.getAllEmployees();
+                List<Employee> employees = employeeDAO.getAllEmployees();
+                String jsonResponse = gson.toJson(employees);
+                out.print(jsonResponse);
             }
-        } catch (NumberFormatException e) {  // 🔹 Handle invalid ID format
+        } catch (NumberFormatException e) {  
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid employee ID: " + e.getMessage());
-        } catch (Exception e) {  // 🔹 Catch unexpected errors
+        } catch (Exception e) {  
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error retrieving employee data: " + e.getMessage());
+        } finally {
+            out.close();
         }
     }
 
-    //Post
+ // POST method
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.setContentType("text/html"); // Ensure correct response type
+        response.setContentType("application/json");
         PrintWriter out = response.getWriter();
 
         try {
-            // 🔹 Validate inputs before parsing
-            String idStr = request.getParameter("id");
-            String name = request.getParameter("name");
-            String ageStr = request.getParameter("age");
-            String salaryStr = request.getParameter("salary");
-            String department = request.getParameter("department");
+            // Read JSON from request body instead of using getParameter()
+            BufferedReader reader = request.getReader();
+            Employee employee = gson.fromJson(reader, Employee.class);
 
-            if (idStr == null || name == null || ageStr == null || salaryStr == null || department == null ||
-                idStr.trim().isEmpty() || name.trim().isEmpty() || ageStr.trim().isEmpty() || salaryStr.trim().isEmpty() || department.trim().isEmpty()) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing or empty fields");
+            // Extract values from the Employee object
+            int id = employee.getId();
+            String name = employee.getName();
+            int age = employee.getAge();
+            double salary = employee.getSalary();
+            String department = employee.getDepartment();
+
+            // Validation check (same as before)
+            if (id == 0 || name == null || age == 0 || salary == 0.0 || department == null ||
+                name.trim().isEmpty() || department.trim().isEmpty()) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "{\"error\": \"Missing or empty fields\"}");
                 return;
             }
 
-            // 🔹 Parse validated inputs
-            int id = Integer.parseInt(idStr);
-            int age = Integer.parseInt(ageStr);
-            double salary = Double.parseDouble(salaryStr);
-
-            // 🔹 Create employee and save to DB
-            Employee employee = new Employee(id, name, age, salary, department);
+            // Save to database
             employeeDAO.createEmployee(employee);
 
-            // 🔹 Send success response
-            out.println("<h3>Employee added successfully</h3>");
+            // Convert response to JSON and send
+            String jsonResponse = gson.toJson(employee);
+            out.print(jsonResponse);
+            out.flush();
 
-        } catch (NumberFormatException e) {  
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid number format: " + e.getMessage());
-        } catch (Exception e) {  
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error adding employee: " + e.getMessage());
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error adding employee: " + e.getMessage() + "\"}");
         }
     }
-
 
     // PUT method
     protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        try {
-            Employee employee = new Employee(
-                Integer.parseInt(request.getParameter("id")),
-                request.getParameter("name"),
-                Integer.parseInt(request.getParameter("age")),
-                Double.parseDouble(request.getParameter("salary")),
-                request.getParameter("department")
-            );
-            employeeDAO.updateEmployee(employee);
-            response.getWriter().println("Employee updated successfully");
-        } catch (NumberFormatException e) {  // 🔹 Handle invalid input formats
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid input: " + e.getMessage());
-        } catch (Exception e) {  // 🔹 Catch unexpected errors
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error updating employee: " + e.getMessage());
-        }
-    }
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
 
-    // DELETE method
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         try {
-            int id = Integer.parseInt(request.getParameter("id"));
-            employeeDAO.deleteEmployee(id);
-            response.getWriter().println("Employee deleted successfully");
-        } catch (NumberFormatException e) {  // 🔹 Handle invalid ID format
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid employee ID: " + e.getMessage());
-        } catch (Exception e) {  // 🔹 Catch unexpected errors
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error deleting employee: " + e.getMessage());
+            // Read JSON request body
+            StringBuilder jsonBuffer = new StringBuilder();
+            String line;
+            while ((line = request.getReader().readLine()) != null) {
+                jsonBuffer.append(line);
+            }
+
+            String requestBody = jsonBuffer.toString();
+            System.out.println("Received JSON: " + requestBody); // Debugging
+
+            // Convert JSON to Employee object
+            Employee employee = gson.fromJson(requestBody, Employee.class);
+            System.out.println("Parsed Employee: " + employee); // Debugging
+
+            // Check if Employee ID exists before updating
+            Employee existingEmployee = employeeDAO.getEmployeeById(employee.getId());
+            if (existingEmployee == null) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                out.print("{\"error\": \"Employee ID not found: " + employee.getId() + "\"}");
+                out.flush();
+                return;
+            }
+
+            // Call update method
+            employeeDAO.updateEmployee(employee);
+            System.out.println("Employee updated successfully"); // Debugging
+
+            // Send updated employee data as response
+            String jsonResponse = gson.toJson(employee);
+            out.print(jsonResponse);
+            out.flush();
+
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error updating employee: " + e.getMessage() + "\"}");
         }
     }
-}
+    // DELETE method
+    @Override
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+
+        String idParam = request.getParameter("id");
+
+        if (idParam == null || idParam.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.write("{\"error\": \"ID parameter is missing\"}");
+            return;
+        }
+
+        int id;
+        try {
+            id = Integer.parseInt(idParam);
+        } catch (NumberFormatException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            out.write("{\"error\": \"Invalid ID format. Please provide a numeric ID.\"}");
+            return;
+        }
+
+        EmployeeDAO employeeDao = new EmployeeDAOImpl();
+        boolean isDeleted = employeeDao.deleteEmployee(id);
+
+        if (isDeleted) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            out.write("{\"message\": \"Employee deleted successfully.\"}");
+        } else {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            out.write("{\"error\": \"Employee not found.\"}");
+        }
+    }
+         
+} 

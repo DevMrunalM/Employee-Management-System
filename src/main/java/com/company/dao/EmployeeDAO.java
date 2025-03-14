@@ -19,5 +19,7 @@ public interface EmployeeDAO {
 		 public void updateEmployee(Employee employee);
 		 
 		 //delete employee by ID
-		 public void deleteEmployee(int id);
+		 public boolean deleteEmployee(int id);
+
+		
 }
