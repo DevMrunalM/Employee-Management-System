@@ -56,88 +56,83 @@ public class EmployeeServlet extends HttpServlet {
 
         try {
             BufferedReader reader = request.getReader();
-            Employee employee = gson.fromJson(reader, Employee.class);
+            Employee[] employees = gson.fromJson(reader, Employee[].class);
 
-            if (employee.getId() == 0 || employee.getName() == null || employee.getAge() == 0 || 
-                employee.getSalary() == 0.0 || employee.getDepartment() == null || 
-                employee.getName().trim().isEmpty() || employee.getDepartment().trim().isEmpty()) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "{\"error\": \"Missing or empty fields\"}");
-                return;
+            for (Employee employee : employees) {
+                if (employee.getId() == 0 || employee.getName() == null || employee.getAge() == 0 ||
+                    employee.getSalary() == 0.0 || employee.getDepartment() == null ||
+                    employee.getName().trim().isEmpty() || employee.getDepartment().trim().isEmpty()) {
+                    logger.warn("Skipping employee with missing/invalid fields: {}", gson.toJson(employee));
+                    continue; // Skip invalid employee data
+                }
+
+                employeeDAO.createEmployee(employee);
+                logger.info("Employee created successfully: {}", gson.toJson(employee));
             }
 
-            employeeDAO.createEmployee(employee);
-            logger.info("Employee created: {}", employee);
-            out.print(gson.toJson(employee));
+            out.print("{\"message\": \"Employees created successfully.\"}");
             out.flush();
         } catch (Exception e) {
-            logger.error("Error adding employee: {}", e.getMessage());
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error adding employee: " + e.getMessage() + "\"}");
+            logger.error("Error adding employees: {}", e.getMessage());
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error adding employees: " + e.getMessage() + "\"}");
         }
     }
+
 
     protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("application/json");
         PrintWriter out = response.getWriter();
-
         try {
-            StringBuilder jsonBuffer = new StringBuilder();
-            String line;
-            while ((line = request.getReader().readLine()) != null) {
-                jsonBuffer.append(line);
+            BufferedReader reader = request.getReader();
+            Employee[] employees = gson.fromJson(reader, Employee[].class);
+
+            boolean allUpdated = true;
+            StringBuilder failedIds = new StringBuilder();
+
+            for (Employee employee : employees) {
+                Employee existingEmployee = employeeDAO.getEmployeeById(employee.getId());
+                if (existingEmployee != null) {
+                    employeeDAO.updateEmployee(employee);
+                    logger.info("Employee updated: {}", employee);
+                } else {
+                    failedIds.append(employee.getId()).append(", ");
+                    allUpdated = false;
+                }
             }
 
-            String requestBody = jsonBuffer.toString();
-            logger.debug("Received JSON: {}", requestBody);
-            Employee employee = gson.fromJson(requestBody, Employee.class);
-
-            Employee existingEmployee = employeeDAO.getEmployeeById(employee.getId());
-            if (existingEmployee == null) {
-                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                out.print("{\"error\": \"Employee ID not found: " + employee.getId() + "\"}");
-                out.flush();
-                return;
+            if (allUpdated) {
+                out.print("{\"message\": \"All employees updated successfully.\"}");
+            } else {
+                out.print("{\"message\": \"Some employees were not updated. Failed IDs: " + failedIds.toString() + "\"}");
             }
-
-            employeeDAO.updateEmployee(employee);
-            logger.info("Employee updated successfully: {}", employee);
-            out.print(gson.toJson(employee));
             out.flush();
         } catch (Exception e) {
-            logger.error("Error updating employee: {}", e.getMessage());
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error updating employee: " + e.getMessage() + "\"}");
+            logger.error("Error updating employees: {}", e.getMessage());
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error updating employees: " + e.getMessage() + "\"}");
         }
     }
 
     protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         PrintWriter out = response.getWriter();
-
-        String idParam = request.getParameter("id");
-        if (idParam == null || idParam.isEmpty()) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.write("{\"error\": \"ID parameter is missing\"}");
-            return;
-        }
-
-        int id;
         try {
-            id = Integer.parseInt(idParam);
-        } catch (NumberFormatException e) {
-            logger.error("Invalid ID format: {}", e.getMessage());
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.write("{\"error\": \"Invalid ID format. Please provide a numeric ID.\"}");
-            return;
-        }
+            BufferedReader reader = request.getReader();
+            int[] ids = gson.fromJson(reader, int[].class);
 
-        boolean isDeleted = employeeDAO.deleteEmployee(id);
-        if (isDeleted) {
-            logger.info("Employee deleted: ID {}", id);
-            response.setStatus(HttpServletResponse.SC_OK);
-            out.write("{\"message\": \"Employee deleted successfully.\"}");
-        } else {
-            logger.warn("Employee not found: ID {}", id);
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            out.write("{\"error\": \"Employee not found.\"}");
+            for (int id : ids) {
+                boolean isDeleted = employeeDAO.deleteEmployee(id);
+                if (!isDeleted) {
+                    logger.warn("Employee not found: ID {}", id);
+                } else {
+                    logger.info("Employee deleted: ID {}", id);
+                }
+            }
+
+            out.write("{\"message\": \"Employees deleted successfully.\"}");
+            out.flush();
+        } catch (Exception e) {
+            logger.error("Error deleting employees: {}", e.getMessage());
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error deleting employees: " + e.getMessage() + "\"}");
         }
     }
 }
