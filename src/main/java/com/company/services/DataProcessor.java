@@ -1,14 +1,15 @@
-package com.company.service;
+package com.company.services;
 
-import com.company.dao.EmployeeDAO;
-import com.company.dao.EmployeeDAOImpl;
 import com.company.model.Employee;
+import com.company.repository.EmployeeRepo;
+import com.company.repository.EmployeeRepoImpl;
+
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class DataProcessor implements Runnable {
-    private EmployeeDAO employeeDAO = new EmployeeDAOImpl();
+    private EmployeeRepo employeeDAO = new EmployeeRepoImpl();
     private static final ExecutorService executorService = Executors.newFixedThreadPool(5);
     private List<Employee> employees;
     private boolean isBackgroundTask;
@@ -22,6 +23,8 @@ public class DataProcessor implements Runnable {
         this.isBackgroundTask = isBackgroundTask;
     }
 
+    
+   
     @Override
     public void run() {
         if (isBackgroundTask) {

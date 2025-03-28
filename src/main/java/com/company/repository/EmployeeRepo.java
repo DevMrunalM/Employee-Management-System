@@ -1,10 +1,10 @@
-package com.company.dao;
+package com.company.repository;
 
 import java.util.List;
 
 import com.company.model.Employee;
 
-public interface EmployeeDAO {
+public interface EmployeeRepo {
 	
 		 //insert employee data
 		 public void createEmployee(Employee employee);

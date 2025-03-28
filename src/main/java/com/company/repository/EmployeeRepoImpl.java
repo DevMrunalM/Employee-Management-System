@@ -1,18 +1,17 @@
-package com.company.dao;
+package com.company.repository;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.company.config.DBConnection;
 import com.company.model.Employee;
+import com.company.services.EmployeeUtility;
 
-public class EmployeeDAOImpl implements EmployeeDAO{
+public class EmployeeRepoImpl implements EmployeeRepo {
     private Connection conn = DBConnection.getConnection();
 
     // Create Employee (INSERT)
@@ -26,9 +25,10 @@ public class EmployeeDAOImpl implements EmployeeDAO{
             pstmt.setString(5, employee.getDepartment());
             pstmt.executeUpdate();
         } catch (SQLException e) {
-        	 System.out.println("Error inserting employee: " + e.getMessage()); // Exception Handling Added
+            System.out.println("Error inserting employee: " + e.getMessage());
         }
     }
+
     // Read Employee by ID (SELECT)
     public Employee getEmployeeById(int id) {
         String sql = "SELECT * FROM employees WHERE id = ?";
@@ -45,11 +45,12 @@ public class EmployeeDAOImpl implements EmployeeDAO{
                 );
             }
         } catch (SQLException e) {
-        	System.out.println("Error fetching employee by ID: " + e.getMessage()); // Exception Handling Added
-        	 e.printStackTrace();
+            System.out.println("Error fetching employee by ID: " + e.getMessage());
+            e.printStackTrace();
         }
         return null;
     }
+
     // Read All Employees (SELECT)
     public List<Employee> getAllEmployees() {
         List<Employee> employees = new ArrayList<>();
@@ -66,28 +67,24 @@ public class EmployeeDAOImpl implements EmployeeDAO{
                 ));
             }
         } catch (SQLException e) {
-        	System.out.println("Error fetching all employees: " + e.getMessage()); // Exception Handling Added
+            System.out.println("Error fetching all employees: " + e.getMessage());
         }
         return employees;
     }
-    
-    // Get all employees sorted by salary using Lambda Expression
+
+    // Get all employees sorted by salary (using EmployeeUtility)
     public List<Employee> getAllEmployeesSortedBySalary() {
-        return getAllEmployees().stream()
-                .sorted(Comparator.comparingDouble(Employee::getSalary))
-                .collect(Collectors.toList());
+        return EmployeeUtility.getAllEmployeesSortedBySalary(getAllEmployees());
     }
 
-    // Get employees by department using Java 8 Stream API
+    // Get employees by department (using EmployeeUtility)
     public List<Employee> getEmployeesByDepartment(String department) {
-        return getAllEmployees().stream()
-                .filter(emp -> emp.getDepartment().equalsIgnoreCase(department))
-                .collect(Collectors.toList());
+        return EmployeeUtility.getEmployeesByDepartment(getAllEmployees(), department);
     }
 
-    // Print all employees using method reference
+    // Print all employees (using EmployeeUtility)
     public void printAllEmployees() {
-        getAllEmployees().forEach(System.out::println);
+        EmployeeUtility.printAllEmployees(getAllEmployees());
     }
 
     // Update Employee (UPDATE)
@@ -101,7 +98,7 @@ public class EmployeeDAOImpl implements EmployeeDAO{
             pstmt.setInt(5, employee.getId());
             pstmt.executeUpdate();
         } catch (SQLException e) {
-        	System.out.println("Error updating employee: " + e.getMessage()); 
+            System.out.println("Error updating employee: " + e.getMessage());
         }
     }
 
@@ -115,15 +112,14 @@ public class EmployeeDAOImpl implements EmployeeDAO{
             
             if (affectedRows == 0) {
                 System.out.println("No employee found with ID: " + id);
-                return false; // Employee was not found
+                return false;
             } else {
                 System.out.println("Employee with ID " + id + " deleted successfully.");
-                return true; // Employee deleted successfully
+                return true;
             }
-            
         } catch (SQLException e) {
-            System.out.println("Error deleting employee: " + e.getMessage()); 
+            System.out.println("Error deleting employee: " + e.getMessage());
         }
-        return false; // Return false in case of exception
+        return false;
     }
 }
