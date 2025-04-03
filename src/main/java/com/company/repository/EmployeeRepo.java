@@ -19,7 +19,11 @@ public interface EmployeeRepo {
 		 public void updateEmployee(Employee employee);
 		 
 		 //delete employee by ID
-		 public boolean deleteEmployee(int id);
+		 public Employee deleteEmployee(int id);
+		 
+		 // Method to get total employee count
+		 public int getEmployeeCount();
+
 
 		
 }

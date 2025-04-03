@@ -104,22 +104,53 @@ public class EmployeeRepoImpl implements EmployeeRepo {
 
     // Delete Employee (DELETE)
     @Override
-    public boolean deleteEmployee(int id) {
-        String sql = "DELETE FROM employees WHERE id = ?";
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, id);
-            int affectedRows = pstmt.executeUpdate();
-            
-            if (affectedRows == 0) {
+    public Employee deleteEmployee(int id) {
+        String selectSql = "SELECT * FROM employees WHERE id = ?";
+        String deleteSql = "DELETE FROM employees WHERE id = ?";
+        
+        try (PreparedStatement selectStmt = conn.prepareStatement(selectSql)) {
+            selectStmt.setInt(1, id);
+            ResultSet rs = selectStmt.executeQuery();
+
+            if (!rs.next()) {
                 System.out.println("No employee found with ID: " + id);
-                return false;
-            } else {
-                System.out.println("Employee with ID " + id + " deleted successfully.");
-                return true;
+                return null;
             }
+
+            Employee deletedEmployee = new Employee(
+                rs.getInt("id"),
+                rs.getString("name"),
+                rs.getInt("age"),
+                rs.getDouble("salary"),
+                rs.getString("department")
+            );
+
+            try (PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
+                deleteStmt.setInt(1, id);
+                deleteStmt.executeUpdate();
+            }
+
+            System.out.println("Employee with ID " + id + " deleted successfully.");
+            return deletedEmployee;
+
         } catch (SQLException e) {
             System.out.println("Error deleting employee: " + e.getMessage());
         }
-        return false;
+        return null;
     }
+
+    public int getEmployeeCount() {
+        String sql = "SELECT COUNT(*) FROM employees";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting employee count: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    
 }

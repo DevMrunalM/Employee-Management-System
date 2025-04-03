@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import com.company.model.Employee;
 import com.company.repository.EmployeeRepo;
 import com.google.gson.Gson;
@@ -21,65 +22,60 @@ public class EmployeeService {
     private final EmployeeRepo employeeRepo;
     private Gson gson = new Gson();
 
-    // Constructor Injection
     public EmployeeService(EmployeeRepo employeeRepo) {
         this.employeeRepo = employeeRepo;
     }
-    
+
+    private boolean validateEmpId(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        Integer empId = (Integer) request.getAttribute("empId");
+
+        if (empId == null) {
+            response.setContentType("application/json");
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.getWriter().write("{\"error\": \"Employee ID is required\"}");
+            return false;
+        }
+
+        Employee existingEmployee = employeeRepo.getEmployeeById(empId);
+        if (existingEmployee == null) {
+            response.setContentType("application/json");
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            response.getWriter().write("{\"error\": \"Employee ID not found\"}");
+            return false;
+        }
+        return true;
+    }
+
     public void handleGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("application/json");
         PrintWriter out = response.getWriter();
         logger.info("GET method called");
 
-        // 1️⃣ Try to get ID from query parameters (?id=1)
-        String idParam = request.getParameter("id");
-
-        // 2️⃣ Try to get ID from path parameters (/employees/1)
-        String pathInfo = request.getPathInfo(); // This gets "/1" if the request is "/employees/1"
-
-        // 3️⃣ Check if sorting is requested (?sortBySalary=true)
+        Integer empId = (Integer) request.getAttribute("empId");
         String sortBySalary = request.getParameter("sortBySalary");
+        String pathInfo = request.getPathInfo();
 
         try {
-        	if (pathInfo != null && pathInfo.equalsIgnoreCase("/sortBySalary")) {  
-                // Sorting employees by salary in ascending order using path parameter
-                List<Employee> sortedEmployees = employeeRepo.getAllEmployees()
-                        .stream()
-                        .sorted(Comparator.comparingDouble(Employee::getSalary))
-                        .collect(Collectors.toList());
+            if (pathInfo != null && pathInfo.equals("/count")) {
+                // Get total employee count
+                int count = employeeRepo.getEmployeeCount();
+                logger.info("Total Employee Count: {}", count);
+                out.print("{\"totalEmployees\": " + count + "}");
+            } else if (empId != null) {
+                if (!validateEmpId(request, response)) return;
 
-                out.print(gson.toJson(sortedEmployees));
-            } else if (sortBySalary != null && sortBySalary.equalsIgnoreCase("true")) {  
-                // Sorting employees by salary in ascending order using query parameter
-                List<Employee> sortedEmployees = employeeRepo.getAllEmployees()
-                        .stream()
-                        .sorted(Comparator.comparingDouble(Employee::getSalary))
-                        .collect(Collectors.toList());
-
-                out.print(gson.toJson(sortedEmployees)); 
-            }else if (idParam != null) {  
-                // Query Parameter Handling
-                int id = Integer.parseInt(idParam);
-                Employee employee = employeeRepo.getEmployeeById(id);
+                Employee employee = employeeRepo.getEmployeeById(empId);
                 out.print(gson.toJson(employee));
-            } else if (pathInfo != null && pathInfo.length() > 1) {  
-                // Path Parameter Handling
-            	try {
-                    int id = Integer.parseInt(pathInfo.substring(1)); // Remove leading "/"
-                    Employee employee = employeeRepo.getEmployeeById(id);
-                    out.print(gson.toJson(employee));
-                } catch (NumberFormatException e) {
-                    logger.error("Invalid path parameter: {}", pathInfo);
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid path parameter: " + pathInfo);
-                }
-            } else {  
-                // No ID, return all employees
+            } else if ("true".equalsIgnoreCase(sortBySalary)) {
+                List<Employee> sortedEmployees = employeeRepo.getAllEmployees();
+                out.print(gson.toJson(sortedEmployees));
+            } else {
                 List<Employee> employees = employeeRepo.getAllEmployees();
                 out.print(gson.toJson(employees));
             }
-        } catch (NumberFormatException e) {
-            logger.error("Invalid employee ID: {}", e.getMessage());
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid employee ID: " + e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error fetching employees: {}", e.getMessage());
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error fetching employees\"}");
         } finally {
             out.close();
         }
@@ -92,59 +88,65 @@ public class EmployeeService {
 
         try {
             BufferedReader reader = request.getReader();
-            String requestData = reader.lines().reduce("", (acc, line) -> acc + line);
-
-            if (requestData.trim().startsWith("[")) {
-                // Bulk Insert: JSON array
-                Employee[] employeesArray = gson.fromJson(requestData, Employee[].class);
-                for (Employee emp : employeesArray) {
-                    employeeRepo.createEmployee(emp);
-                }
-                logger.info("Bulk employees created successfully.");
-                out.print("{\"message\": \"Bulk employees created successfully.\"}");
-            } else {
-                // Single Employee Insert: JSON object
-                Employee employee = gson.fromJson(requestData, Employee.class);
-                employeeRepo.createEmployee(employee);
-                logger.info("Employee created successfully: {}", gson.toJson(employee));
-                out.print("{\"message\": \"Employee created successfully.\"}");
-            }
-            out.flush();
+            Employee employee = gson.fromJson(reader, Employee.class);
+            employeeRepo.createEmployee(employee);
+            logger.info("Employee created successfully: {}", gson.toJson(employee));
+            response.setStatus(HttpServletResponse.SC_CREATED);
+            out.print("{\"message\": \"Employee added successfully.\", \"employee\": " + gson.toJson(employee) + "}");
         } catch (Exception e) {
             logger.error("Error adding employee: {}", e.getMessage());
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error adding employee: " + e.getMessage() + "\"}");
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error adding employee\"}");
         } finally {
             out.close();
         }
     }
 
-
     public void handlePut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("application/json");
         PrintWriter out = response.getWriter();
-        try {
-            BufferedReader reader = request.getReader();
-            String requestData = reader.lines().reduce("", (acc, line) -> acc + line);
 
-            if (requestData.trim().startsWith("[")) {
-                // Bulk Update: JSON array
-                Employee[] employeesArray = gson.fromJson(requestData, Employee[].class);
-                for (Employee emp : employeesArray) {
-                    employeeRepo.updateEmployee(emp);
-                }
-                logger.info("Bulk employees updated successfully.");
-                out.print("{\"message\": \"Bulk employees updated successfully.\"}");
-            } else {
-                // Single Employee Update: JSON object
-                Employee employee = gson.fromJson(requestData, Employee.class);
-                employeeRepo.updateEmployee(employee);
-                logger.info("Employee updated successfully: {}", gson.toJson(employee));
-                out.print("{\"message\": \"Employee updated successfully.\"}");
+        try {
+            if (!validateEmpId(request, response)) return;
+
+            Integer empId = (Integer) request.getAttribute("empId");
+
+            // Fetch the existing employee details
+            Employee existingEmployee = employeeRepo.getEmployeeById(empId);
+            if (existingEmployee == null) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                out.print("{\"error\": \"Employee not found\"}");
+                return;
             }
-            out.flush();
+
+            // Read input JSON
+            BufferedReader reader = request.getReader();
+            Employee updatedEmployee = gson.fromJson(reader, Employee.class);
+
+            // Preserve unchanged fields
+            if (updatedEmployee.getName() == null) {
+                updatedEmployee.setName(existingEmployee.getName());
+            }
+            if (updatedEmployee.getAge() == 0) { 
+                updatedEmployee.setAge(existingEmployee.getAge());
+            }
+            if (updatedEmployee.getSalary() == 0.0) { 
+                updatedEmployee.setSalary(existingEmployee.getSalary());
+            }
+            if (updatedEmployee.getDepartment() == null) {
+                updatedEmployee.setDepartment(existingEmployee.getDepartment());
+            }
+
+            // Ensure empId remains unchanged
+            updatedEmployee.setId(empId);
+
+            // Update the employee in the database
+            employeeRepo.updateEmployee(updatedEmployee);
+
+            logger.info("Employee updated successfully: {}", gson.toJson(updatedEmployee));
+            out.print("{\"message\": \"Employee updated successfully.\", \"employee\": " + gson.toJson(updatedEmployee) + "}");
         } catch (Exception e) {
             logger.error("Error updating employee: {}", e.getMessage());
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error updating employee: " + e.getMessage() + "\"}");
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error updating employee\"}");
         } finally {
             out.close();
         }
@@ -153,52 +155,46 @@ public class EmployeeService {
     public void handleDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         PrintWriter out = response.getWriter();
-        try {
-            BufferedReader reader = request.getReader();
-            String requestData = reader.lines().reduce("", (acc, line) -> acc + line).trim();
 
-            if (requestData.isEmpty()) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "{\"error\": \"Request body is empty\"}");
+        try {
+            Integer empId = (Integer) request.getAttribute("empId");
+            if (empId == null) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                out.print("{\"error\": \"Employee ID is required\"}");
                 return;
             }
 
-            if (requestData.startsWith("[")) {
-                // Bulk Delete: JSON array
-                Integer[] idsArray = gson.fromJson(requestData, Integer[].class);
-                boolean allDeleted = true;
+            // Get the deleted employee details
+            Employee deletedEmployee = employeeRepo.deleteEmployee(empId);
 
-                for (Integer id : idsArray) {
-                    if (id == null || !employeeRepo.deleteEmployee(id)) {
-                        allDeleted = false;
-                    }
-                }
-
-                if (allDeleted) {
-                    out.write("{\"message\": \"All employees deleted successfully.\"}");
-                } else {
-                    out.write("{\"message\": \"Some employees could not be found or deleted.\"}");
-                }
+            if (deletedEmployee != null) {
+                logger.info("Employee deleted successfully: {}", gson.toJson(deletedEmployee));
+                response.setStatus(HttpServletResponse.SC_OK);
+                out.print("{\"message\": \"Employee deleted successfully.\", \"employee\": " + gson.toJson(deletedEmployee) + "}");
             } else {
-                // Single Employee Delete: JSON object
-                Integer id = gson.fromJson(requestData, Integer.class);
-                
-                if (id == null) {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "{\"error\": \"Invalid employee ID\"}");
-                    return;
-                }
-
-                boolean isDeleted = employeeRepo.deleteEmployee(id);
-
-                if (isDeleted) {
-                    out.write("{\"message\": \"Employee deleted successfully.\"}");
-                } else {
-                    out.write("{\"message\": \"Employee not found.\"}");
-                }
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                out.print("{\"error\": \"Employee not found\"}");
             }
-            out.flush();
         } catch (Exception e) {
             logger.error("Error deleting employee: {}", e.getMessage());
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error deleting employee: " + e.getMessage() + "\"}");
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print("{\"error\": \"Error deleting employee\"}");
+        } finally {
+            out.close();
+        }
+    }
+
+    public void getEmployeeCount(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+
+        try {
+            int count = employeeRepo.getEmployeeCount();
+            logger.info("Total Employee Count: {}", count);
+            out.print("{\"totalEmployees\": " + count + "}");
+        } catch (Exception e) {
+            logger.error("Error fetching employee count: {}", e.getMessage());
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "{\"error\": \"Error fetching employee count\"}");
         } finally {
             out.close();
         }
