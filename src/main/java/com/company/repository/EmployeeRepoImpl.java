@@ -6,6 +6,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import com.company.config.DBConnection;
 import com.company.model.Employee;
@@ -87,6 +90,22 @@ public class EmployeeRepoImpl implements EmployeeRepo {
         EmployeeUtility.printAllEmployees(getAllEmployees());
     }
 
+ // Get next available ID
+    @Override
+    public int getNextAvailableId() {
+        String sql = "SELECT MAX(id) FROM employees";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1) + 1;
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting next available ID: " + e.getMessage());
+        }
+        return 1; // Default starting ID if table is empty
+    }
+
+    
     // Update Employee (UPDATE)
     public void updateEmployee(Employee employee) {
         String sql = "UPDATE employees SET name = ?, age = ?, salary = ?, department = ? WHERE id = ?";
@@ -152,5 +171,27 @@ public class EmployeeRepoImpl implements EmployeeRepo {
         return 0;
     }
 
-    
+    @Override
+    public void bulkInsertEmployees(List<Employee> employees) {
+        ExecutorService executor = Executors.newFixedThreadPool(5); // Adjust pool size as needed
+
+        for (Employee emp : employees) {
+            executor.submit(() -> {
+                synchronized (this) {
+                    if (emp.getId() == 0) {
+                        emp.setId(getNextAvailableId());
+                    }
+                    createEmployee(emp);
+                }
+            });
+        }
+
+        executor.shutdown();
+        try {
+            executor.awaitTermination(1, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
 }

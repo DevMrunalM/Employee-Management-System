@@ -23,8 +23,6 @@ public class DataProcessor implements Runnable {
         this.isBackgroundTask = isBackgroundTask;
     }
 
-    
-   
     @Override
     public void run() {
         if (isBackgroundTask) {

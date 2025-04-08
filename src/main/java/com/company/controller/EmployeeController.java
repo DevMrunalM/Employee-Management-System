@@ -7,10 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.*;
 import java.io.IOException;
+import java.util.stream.Collectors;
 
 @WebServlet("/employees/*")
 public class EmployeeController extends HttpServlet {
@@ -44,6 +43,15 @@ public class EmployeeController extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String pathInfo = request.getPathInfo();
+
+        if ("/process-data".equals(pathInfo)) {
+            employeeService.handleProcessData(request, response);
+            return;
+        }
+
+        String requestBody = request.getReader().lines().collect(Collectors.joining());
+        request.setAttribute("requestBody", requestBody);
         employeeService.handlePost(request, response);
     }
 
@@ -51,6 +59,9 @@ public class EmployeeController extends HttpServlet {
     protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         Integer empId = extractEmpId(request);
         request.setAttribute("empId", empId);
+
+        String requestBody = request.getReader().lines().collect(Collectors.joining());
+        request.setAttribute("requestBody", requestBody);
         employeeService.handlePut(request, response);
     }
 
@@ -58,8 +69,9 @@ public class EmployeeController extends HttpServlet {
     protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
         Integer empId = extractEmpId(request);
         request.setAttribute("empId", empId);
+
+        String requestBody = request.getReader().lines().collect(Collectors.joining());
+        request.setAttribute("requestBody", requestBody);
         employeeService.handleDelete(request, response);
     }
-    
-    
 }
